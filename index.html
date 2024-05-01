@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Video Streaming with DASH</title>
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+  </head>
+  <body>
+    <video data-dashjs-player autoplay controls style="width: 100%">
+      <source src="transcoded/test_manifest.mpd" type="application/dash+xml" />
+    </video>
+  </body>
+</html>
