@@ -46,6 +46,7 @@ export async function transcodeVideoForDASH(videoFile: string) {
     const dashFiles = resolutions
       .map(
         (resolution) =>
+          // Trying to figure out why these parameters for the MP4Box command are not working
           // `${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_video.mp4#video:id=${resolution.height}p ${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_audio.mp4#audio:id=${resolution.height}p`
           `${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_audio.mp4#audio:id=${resolution.height} ${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_video.mp4#video:id=${resolution.height}`
         // `${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_audio.mp4`
