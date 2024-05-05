@@ -26,45 +26,31 @@ export async function transcodeVideoForDASH(videoFile: string) {
     const inputPath = `${VIDEOS_PATH}${videoFile}`;
     const resolutions = [
       { width: 426, height: 240 },
-      // { width: 640, height: 360 },
-      // { width: 1280, height: 720 },
-      // { width: 1920, height: 1080 },
+      // Additional resolutions can be uncommented or added here
     ];
 
-    // Transcode video and audio separately
-    for (const resolution of resolutions) {
-      const videoOutputPath = `${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_video.mp4`;
-      const audioOutputPath = `${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_audio.mp4`;
-
-      // Transcode video
-      await $`ffmpeg -i ${inputPath} -an -c:v libx264 -b:v 500k -s ${resolution.width}x${resolution.height} -profile:v main -level 3.1 ${videoOutputPath}`;
-
-      // Transcode audio
-      await $`ffmpeg -i ${inputPath} -vn -c:a aac -b:a 128k ${audioOutputPath}`;
-    }
-
-    const dashFiles = resolutions
-      .map(
-        (resolution) =>
-          // Trying to figure out why these parameters for the MP4Box command are not working
-          // `${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_video.mp4#video:id=${resolution.height}p ${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_audio.mp4#audio:id=${resolution.height}p`
-          `${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_audio.mp4#audio:id=${resolution.height} ${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_video.mp4#video:id=${resolution.height}`
-        // `${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_audio.mp4`
-        // `${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_video.mp4#video ${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_audio.mp4#audio`
-        // `-add ${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_video.mp4#video:id=${resolution.height}p:role=main -add ${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_audio.mp4#audio:id=${resolution.height}p:role=main`
-        // `${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_video.mp4#video:id=${resolution.height}p:role=main ${TRANSCODED_PATH}${fileNameWithoutExtension}_${resolution.height}p_audio.mp4#audio:id=${resolution.height}p:role=main`
-      )
+    // Dynamically construct FFmpeg command parts for each resolution
+    const resolutionCommands = resolutions
+      .map((resolution, index) => {
+        const { width, height } = resolution;
+        const bitrate = 8000 / 2 ** index; // Adjust bitrate dynamically based on index
+        return `-b:v:${index} ${bitrate}k -s ${width}x${height}`;
+      })
       .join(" ");
 
-    // Generate DASH manifest with non-multiplexed representations
+    const varStreamMap = resolutions
+      .map((_, index) => `v:${index},a:0`)
+      .join(" ");
+
     console.log(
-      "RUNNING",
-      `MP4Box -dash 4000 -rap -frag-rap -profile dashavc264:live -out ${TRANSCODED_PATH}${fileNameWithoutExtension}_manifest.mpd ${dashFiles}`
+      `ffmpeg -i ${inputPath} -map 0:v -map 0:a -c:v libx264 -c:a aac ${resolutionCommands} -b:a 128k -var_stream_map "${varStreamMap}" -f dash ${TRANSCODED_PATH}${fileNameWithoutExtension}_manifest.mpd`
     );
-    await $`MP4Box -dash 4000 -rap -frag-rap -profile dashavc264:live -out ${TRANSCODED_PATH}${fileNameWithoutExtension}_manifest.mpd ${dashFiles}`;
+
+    await $`ffmpeg -i ${inputPath} -map 0:v -map 0:a -c:v libx264 -c:a aac ${resolutionCommands} -b:a 128k -var_stream_map "${varStreamMap}" -f dash ${TRANSCODED_PATH}${fileNameWithoutExtension}_manifest.mpd`;
 
     return "TRANSCODED_VIDEO_SUCCESSFULLY" as const;
   } catch (error) {
+    console.error("Error transcoding video:", error);
     return "ERROR_TRANSCODING_VIDEO" as const;
   }
 }

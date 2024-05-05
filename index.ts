@@ -2,7 +2,7 @@ import { transcodeVideoForDASH } from "./ffmpeg";
 import { $ } from "bun";
 
 // delete "transcoded" folder on start
-// await $`rm -rf ./transcoded`;
+await $`rm -rf ./transcoded`;
 
 const server = Bun.serve({
   port: 3000,
@@ -22,7 +22,7 @@ const server = Bun.serve({
     }
 
     // Serve video files and the manifest for DASH streaming
-    if (url.pathname.startsWith("/transcoded/")) {
+    if (url.pathname.startsWith("/videos/")) {
       return new Response(Bun.file(`.${url.pathname}`));
     }
 
