@@ -1,14 +1,38 @@
 import { $ } from "bun";
+import { randomUUID } from "crypto";
+import { writeFile } from "fs/promises";
 
 const BASE_PATH = "./";
 const VIDEOS_PATH = `${BASE_PATH}videos/`;
 const TRANSCODED_PATH = `${BASE_PATH}transcoded/`;
+const DEBUG_PATH = `${BASE_PATH}debug/`;
+
+async function logToFileAndConsole(
+  message: string,
+  debugFilePath: string = DEBUG_PATH,
+  isDebug: boolean = true
+) {
+  console.log(message);
+  if (isDebug) {
+    await writeFile(debugFilePath, message + "\n", { flag: "a" });
+  }
+}
 
 export async function transcodeVideoForDASH(videoFile: string) {
   const fileNameWithoutExtension = videoFile.split(".")[0];
+  const debugId = randomUUID();
+  const debugFilePath = `${DEBUG_PATH}${debugId}.log`;
+
+  // Create the debug folder if it does not exist
+  await $`mkdir -p ${DEBUG_PATH}`;
 
   // Check if the video file exists
   if (!(await $`ls ${VIDEOS_PATH}${videoFile}`)) {
+    await logToFileAndConsole(
+      `FILE_NOT_FOUND: ${videoFile}`,
+      debugFilePath,
+      true
+    );
     return "FILE_NOT_FOUND" as const;
   }
 
@@ -18,39 +42,37 @@ export async function transcodeVideoForDASH(videoFile: string) {
   const lsResult = await $`ls ${TRANSCODED_PATH}`.quiet();
   // If the manifest already exists, return
   if (lsResult.stdout.includes(`${fileNameWithoutExtension}_manifest.mpd`)) {
+    await logToFileAndConsole(
+      `MANIFEST_EXISTS: ${fileNameWithoutExtension}_manifest.mpd`,
+      debugFilePath,
+      true
+    );
     return "MANIFEST_EXISTS" as const;
   }
 
-  // Transcode video into separate video and audio files
-  try {
-    const inputPath = `${VIDEOS_PATH}${videoFile}`;
-    const resolutions = [
-      { width: 426, height: 240 },
-      // Additional resolutions can be uncommented or added here
-    ];
+  // Simplified transcode video command
+  const inputPath = `${VIDEOS_PATH}${videoFile}`;
+  const outputPath = `${TRANSCODED_PATH}${fileNameWithoutExtension}_manifest.mpd`;
 
-    // Dynamically construct FFmpeg command parts for each resolution
-    const resolutionCommands = resolutions
-      .map((resolution, index) => {
-        const { width, height } = resolution;
-        const bitrate = 8000 / 2 ** index; // Adjust bitrate dynamically based on index
-        return `-b:v:${index} ${bitrate}k -s ${width}x${height}`;
-      })
-      .join(" ");
+  const ffmpegCommand = `ffmpeg -i ${inputPath} -c:v libx264 -c:a aac -b:v 1000k -b:a 128k -f dash ${outputPath}`;
 
-    const varStreamMap = resolutions
-      .map((_, index) => `v:${index},a:0`)
-      .join(" ");
+  await logToFileAndConsole(
+    `FFmpeg Command: ${ffmpegCommand}`,
+    debugFilePath,
+    true
+  );
 
-    console.log(
-      `ffmpeg -i ${inputPath} -map 0:v -map 0:a -c:v libx264 -c:a aac ${resolutionCommands} -b:a 128k -var_stream_map "${varStreamMap}" -f dash ${TRANSCODED_PATH}${fileNameWithoutExtension}_manifest.mpd`
-    );
+  // Execute the FFmpeg command
+  const result =
+    await $`ffmpeg -i ${inputPath} -c:v libx264 -c:a aac -b:v 1000k -b:a 128k -f dash ${outputPath}`;
+  await logToFileAndConsole(
+    `
+        FFmpeg stdout: ${result.stdout}
+        FFmpeg stderr: ${result.stderr} 
+      `,
+    debugFilePath,
+    true
+  );
 
-    await $`ffmpeg -i ${inputPath} -map 0:v -map 0:a -c:v libx264 -c:a aac ${resolutionCommands} -b:a 128k -var_stream_map "${varStreamMap}" -f dash ${TRANSCODED_PATH}${fileNameWithoutExtension}_manifest.mpd`;
-
-    return "TRANSCODED_VIDEO_SUCCESSFULLY" as const;
-  } catch (error) {
-    console.error("Error transcoding video:", error);
-    return "ERROR_TRANSCODING_VIDEO" as const;
-  }
+  return "TRANSCODED_VIDEO_SUCCESSFULLY" as const;
 }

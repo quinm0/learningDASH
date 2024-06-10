@@ -18,11 +18,11 @@ const server = Bun.serve({
 
     // if path is /transcode run
     if (url.pathname === "/transcode") {
-      return new Response(await transcodeVideoForDASH("test.mp4"));
+      return new Response(await transcodeVideoForDASH("video.mp4"));
     }
 
     // Serve video files and the manifest for DASH streaming
-    if (url.pathname.startsWith("/videos/")) {
+    if (url.pathname.startsWith("/transcoded")) {
       return new Response(Bun.file(`.${url.pathname}`));
     }
 
