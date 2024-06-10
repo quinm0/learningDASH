@@ -1,8 +1,7 @@
-import { transcodeVideoForDASH } from "./ffmpeg";
-import { $ } from "bun";
+import { transcodeVideoForDASH } from "./util/ffmpeg";
 
 // delete "transcoded" folder on start
-await $`rm -rf ./transcoded`;
+// await $`rm -rf ./transcoded`;
 
 const server = Bun.serve({
   port: 3000,
