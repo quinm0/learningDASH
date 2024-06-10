@@ -33,8 +33,7 @@ export async function transcodeVideoForDASH(videoFile: string) {
   log(`FFmpeg Command: ${ffmpegCommand}`);
 
   // Execute the FFmpeg command
-  const result =
-    await $`ffmpeg -i ${inputPath} -c:v libx264 -c:a aac -b:v 1000k -b:a 128k -f dash ${outputPath}`.nothrow();
+  const result = await $`bash -c "${ffmpegCommand}"`.nothrow();
   log(`
     FFmpeg stdout: ${result.stdout}
     FFmpeg stderr: ${result.stderr} 
