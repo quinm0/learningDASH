@@ -2,11 +2,50 @@
 <html>
   <head>
     <title>Video Streaming with DASH</title>
+    <script>
+      function initializeCastApi() {
+        cast.framework.CastContext.getInstance().setOptions({
+          receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
+        });
+
+
+        const castButton = document.getElementById('castButton');
+        castButton.addEventListener('click', () => {
+          console.log('Cast button clicked');
+          const session = cast.framework.CastContext.getInstance().getCurrentSession();
+          if (session) {
+            const mediaInfo = new chrome.cast.media.MediaInfo('http://localhost:3000/transcoded/video_manifest.mpd', 'application/dash+xml');
+            const request = new chrome.cast.media.LoadRequest(mediaInfo);
+            session.loadMedia(request).then(
+              () => { console.log('Load succeed'); },
+              (errorCode) => { console.log('Error code: ' + errorCode); }
+            );
+          } else {
+            cast.framework.CastContext.getInstance().requestSession().then(
+              () => { console.log('Session started'); },
+              (errorCode) => { console.log('Error code: ' + errorCode); }
+            );
+          }
+        });
+        console.log('Cast button added');
+      }
+
+      window['__onGCastApiAvailable'] = function(isAvailable) {
+        if (isAvailable) {
+          initializeCastApi();
+        } else {
+          console.log('Cast API not available');
+        }
+      };
+    </script>
     <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
   </head>
   <body>
-    <video data-dashjs-player autoplay controls style="width: 100%">
+    <video id="videoElement" data-dashjs-player autoplay controls style="width: 100%">
       <source src="transcoded/video_manifest.mpd" type="application/dash+xml" />
     </video>
+    <button id="castButton">Cast</button>
+    <google-cast-launcher></google-cast-launcher>
   </body>
 </html>
